@@ -155,41 +155,43 @@ test = datas[datas['y'] == sigVal]
 # test_y_prob = model.predict_proba((test.ix[:,1:-1]).as_matrix())
 
 # xgboost for Logistic Regression
-random_seed  = 1225
-trainV,val = train_test_split(train, test_size = 0.2,random_state=random_seed)
-trainVLabel = trainV.y
-trainVX = trainV.drop(labels= ['uid','y'], axis = 1)
-valLabel = val.y
-valX = val.drop(labels=['uid', 'y'], axis = 1)
-trainLabel = train.y
-train = train.drop(labels=['uid', 'y'], axis = 1)
-testX = test.drop(labels=['uid', 'y'], axis = 1)
-dtrainV = xgb.DMatrix(data = trainV, label= trainVLabel)
-dval = xgb.DMatrix(data= valX, label=valLabel)
-dtrain = xgb.DMatrix(data= train, label=trainLabel)
-dtest = xgb.DMatrix(data= testX)
-params={
-    'booster':'gbtree',
-    'objective': 'binary:logistic',
-    'early_stopping_rounds':100,
-    'scale_pos_weight': 1542.0/13458.0,
-        'eval_metric': 'auc',
-    'gamma':0,
-    'max_depth': 8,
-    'lambda':300,
-        'subsample':0.8,
-        'colsample_bytree':0.4,
-        #'min_child_weight':3,
-        'eta': 0.02,
-    'seed':random_seed,
-    'nthread':7
-    }
-evalist = [(dval, 'val'), (dtrainV, 'train')]
-#bst_cv = xgb.cv(params, dtrain,num_boost_round=3000, nfold=4)
-model = xgb.train(params,dtrain, num_boost_round= 100)
-cur_time = time.strftime("%m%d_%H%M",time.localtime())
-model.save_model(cur_time + '_xgb.model')
-test_y_prob = model.predict(dtest,ntree_limit=model.best_ntree_limit)
+# random_seed  = 1225
+# trainV,val = train_test_split(train, test_size = 0.25,random_state=random_seed)
+# trainVLabel = trainV.y
+# trainVX = trainV.drop(labels= ['uid','y'], axis = 1)
+# valLabel = val.y
+# valX = val.drop(labels=['uid', 'y'], axis = 1)
+# trainLabel = train.y
+# train = train.drop(labels=['uid', 'y'], axis = 1)
+# testX = test.drop(labels=['uid', 'y'], axis = 1)
+# dtrainV = xgb.DMatrix(data = trainVX, label= trainVLabel)
+# dval = xgb.DMatrix(data= valX, label=valLabel)
+# dtrain = xgb.DMatrix(data= train, label=trainLabel)
+# dtest = xgb.DMatrix(data= testX)
+# params={
+#     'booster':'gbtree',
+#     'objective': 'binary:logistic',
+#     'early_stopping_rounds':20,
+#     'scale_pos_weight': 1542.0/13458.0,
+#         'eval_metric': 'auc',
+#     'gamma':0,
+#     'max_depth': 8,
+#     'lambda':700,
+#         'subsample':0.75,
+#         'colsample_bytree':0.4,
+#         'min_child_weight':5,
+#         'eta': 0.1,
+#     'seed':random_seed,
+#     'nthread':8
+#     }
+# evalist = [(dval, 'val'), (dtrainV, 'train')]
+# #bst_cv = xgb.cv(params, dtrain,num_boost_round=3000, nfold=4)
+# model = xgb.train(params,dtrainV, verbose_eval = 50, num_boost_round= 6000, evals=evalist)
+# # bst = Booster(params, [dtrain] + [d[0] for d in evals])
+#
+# cur_time = time.strftime("%m%d_%H%M",time.localtime())
+# model.save_model(cur_time + '_xgb.model')
+# test_y_prob = model.predict(dtest,ntree_limit=model.best_ntree_limit)
 
 
 #result = pd.DataFrame(test['uid']) ### ???
