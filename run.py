@@ -3,6 +3,10 @@ import numpy as np
 import time
 import xgboost as xgb
 from sklearn.cross_validation import train_test_split
+from sklearn.cross_validation import KFold
+from sklearn import metrics
+from sklearn.linear_model import LogisticRegression
+from hyperopt import fmin, hp, STATUS_OK, Trials, tpe
 
 #from myUtil import *
 
@@ -18,7 +22,7 @@ def catToDummy(data, featuresType):
                 # for regression, dummies remove last col   ### ???
                 ### data = pd.concat([data, dummies.ix[:,:-1]], axis = 1)
                 data = pd.concat([data, dummies], axis = 1)
-    return data ### ???
+    return data
 
 #def getMissrate(data):
 #   Missrate = {}
@@ -70,11 +74,11 @@ def isNA(x):
 train_x.where(train_x.applymap(notNA), np.nan, inplace = True)
 test_x.where(test_x.applymap(notNA), np.nan, inplace = True)
 
-#feature Info
- #feaNum: include 'uid', 1046
-feaNumCnt = len(featuresType[featuresType['type'] == 'numeric'])
-#feaCat: 93
-feaCateCnt = len(featuresType[featuresType['type'] == 'category'])
+# #feature Info
+#  #feaNum: include 'uid', 1046
+# feaNumCnt = len(featuresType[featuresType['type'] == 'numeric'])
+# #feaCat: 93
+# feaCateCnt = len(featuresType[featuresType['type'] == 'category'])
 
 # missrate
 # line missrate:
@@ -83,15 +87,17 @@ feaCateCnt = len(featuresType[featuresType['type'] == 'category'])
 # feature missrate:
 #trainMissrate = getMissrate(train_x) #max:0.9678
 #testMissrate = getMissrate(test_x) #max: 0.9648
-trFeatureMiss = train_x.apply(getMissrate, reduce = False).to_frame()
-trFeatureMiss.columns = ['trMissrate']
-trFeatureMiss = pd.merge(featuresType, trFeatureMiss, left_on = 'feature',
-                         right_index= True)
-teFeatureMiss = test_x.apply(getMissrate, reduce = False).to_frame()
-teFeatureMiss.columns = ['teMissrate']
-teFeatureMiss = pd.merge(featuresType, teFeatureMiss,  left_on='feature',
-                         right_index= True)
-FeatureMiss = pd.merge(trFeatureMiss, teFeatureMiss)
+
+# trFeatureMiss = train_x.apply(getMissrate, reduce = False).to_frame()
+# trFeatureMiss.columns = ['trMissrate']
+# trFeatureMiss = pd.merge(featuresType, trFeatureMiss, left_on = 'feature',
+#                          right_index= True)
+# teFeatureMiss = test_x.apply(getMissrate, reduce = False).to_frame()
+# teFeatureMiss.columns = ['teMissrate']
+# teFeatureMiss = pd.merge(featuresType, teFeatureMiss,  left_on='feature',
+#                          right_index= True)
+# FeatureMiss = pd.merge(trFeatureMiss, teFeatureMiss)
+
 ## has 642 feture has same missrate 0.0012666  ###???
 ##trFeatureMissInfo = trFeatureMiss.groupby(by = ['trMissrate']).count()
 
@@ -114,19 +120,20 @@ FeatureMiss = pd.merge(trFeatureMiss, teFeatureMiss)
 #               0.65, 0.66,0.67,0.68,0.69,0.7,0.71,0.72,0.73, 0.76,
 #               0.77,0.78,0.79,0.8, 0.85, 0.9,0.97,0.98,0.99])
 # FeatureMiss = FeatureMiss[['feature', 'type', 'trMissrate', 'teMissrate']]
-for row in range(len(FeatureMiss)):
-    if FeatureMiss.ix[row,'trMissrate'] >= 0.06 or FeatureMiss.ix[row,'teMissrate'] >= 0.06:
-        feature = FeatureMiss.ix[row, 'feature']
-        train_x.drop(feature, axis = 1, inplace = True)
-        test_x.drop(feature, axis = 1, inplace = True)
+# for row in range(len(FeatureMiss)):
+#     if FeatureMiss.ix[row,'trMissrate'] >= 0.06 or FeatureMiss.ix[row,'teMissrate'] >= 0.06:
+#         feature = FeatureMiss.ix[row, 'feature']
+#         train_x.drop(feature, axis = 1, inplace = True)
+#         test_x.drop(feature, axis = 1, inplace = True)
 
+# As xgboost is treat every variable as numeric and support for miss
 #fill NA
 for feature in train_x.columns[1:]:
     if np.any(featuresType.loc[featuresType['feature'] == feature, 'type'] == 'category'):
         train_x[feature].fillna(-1, inplace = True)
         test_x[feature].fillna(-1, inplace = True)
-train_x.fillna(train_x.mean(), inplace = True)
-test_x.fillna(test_x.mean(),inplace = True)
+# train_x.fillna(train_x.mean(), inplace = True)
+# test_x.fillna(test_x.mean(),inplace = True)
 train = pd.merge(train_x, train_y)
 
 
@@ -144,17 +151,152 @@ test = datas[datas['y'] == sigVal]
 #negCount = len(train_y[train_y['y'] == 0])   13458
 #rate = negCount/posCount = 0.11
 
-#Logistic Regression
-# from sklearn.linear_model import LogisticRegression
-# model = LogisticRegression(class_weight='auto')
-# #remove 'uid'
-# train.drop('uid', axis = 1, inplace = True)
-# label = train.y
-# model.fit(X= (train.ix[:,:-1]).as_matrix(), y = label.as_matrix())
-# #test
-# test_y_prob = model.predict_proba((test.ix[:,1:-1]).as_matrix())
+def myAuc(y_true, y_score):
+    y_true  = np.array(y_true)
+    y_score = np.array(y_score)
+    pos_score = y_score[y_true == 1]
+    neg_score = y_score[y_true == 0]
+    def ufunc_myAuc(negs):
+        def my_auc_help(pos):
+            return (negs < pos).sum() + 0.5 * ((negs == pos).sum())
+        return np.frompyfunc(my_auc_help, 1, 1)
+    totalScore = ((ufunc_myAuc(neg_score)(pos_score)).astype(np.float64)).sum()
+    count = (pos_score.shape[0])*(neg_score.shape[0])
+    auc = totalScore / count
+    return auc
 
-# xgboost for Logistic Regression
+def testParam(params,data, times):
+    sumScore_val = 0.0
+    sumScore_train = 0.0
+    for i in range(times):
+        train,val = train_test_split(data, test_size=0.25, random_state= i)
+        model = LogisticRegression(C = params['C'],class_weight='auto')
+        model.fit(X=train.drop(labels=['uid','y'], axis = 1), y = train.y)
+        predict_val = model.predict_proba(val.drop(labels=['uid','y'], axis = 1))
+        score_val = metrics.roc_auc_score(y_true = val.y, y_score= predict_val[:,1])
+        print(score_val)
+        # myAuc is approximate equal to metrics.roc_auc_score
+        #score_val = myAuc(y_true = val.y, y_score = predict_val[:,1])
+        sumScore_val += score_val
+        #predict_train = model.predict_proba(train.drop(labels=['uid','y'], axis = 1))
+        #score_train = metrics.roc_auc_score(y_true = train.y, y_score= predict_train[:,1])
+        # myAuc is approximate equal to metrics.roc_auc_score
+        #score_train = myAuc(y_true = train.y, y_score = predict_train[:,1])
+        # sumScore_train += score_train
+    return (sumScore_val/(times), sumScore_train/(times))
+n_runs = 3
+n_folds = 4
+global trial_counter
+def hypert_wrapper(param, algo_name):
+    num_train = train.shape[0]
+    num_valid = num_train//n_folds
+    score = np.zeros((n_runs, n_folds),dtype=float)
+    print('------------------------------------')
+    global trial_counter
+    trial_counter += 1
+    print('trial_counter: %d' %trial_counter)
+    print(param)
+    for run in range(n_runs):
+        print('run: %d' %run)
+        rng = np.random.RandomState(2016 + 100 *run)
+        indexs = rng.permutation(num_train)
+        for fold in range(n_folds):
+            valid_index_start = fold*num_valid
+            valid_index_end = (fold +1)*num_valid
+            valid_indexs = indexs[valid_index_start:valid_index_end]
+            cv_valid = train.iloc[valid_indexs,:]
+            train_indexs = np.concatenate((indexs[:valid_index_start],
+                                          indexs[valid_index_end:]))
+            cv_train = train.iloc[train_indexs,:]
+            if algo_name == 'skl_logis':
+                model = LogisticRegression(C = param['C'],class_weight='auto')
+                model.fit(X=cv_train.drop(labels=['uid','y'], axis = 1), y = cv_train.y)
+                pred = model.predict_proba(cv_valid.drop(labels=['uid','y'], axis = 1))
+                pred = pred[:,1]
+            elif algo_name == 'reg_xgb_tree':
+                d_cv_train = xgb.DMatrix(cv_train.drop(labels=['uid','y'],axis = 1),
+                                         label =cv_train.y, missing=np.nan)
+                d_cv_valid = xgb.DMatrix(cv_valid.drop(labels=['uid','y'],axis = 1),
+                                         label =cv_valid.y, missing=np.nan)
+                #watchlist = [(d_cv_valid, 'valid'), (d_cv_train,'trian')]
+                watchlist = [(d_cv_valid, 'valid')]
+                bst = xgb.train(param,d_cv_train,num_boost_round=param['num_round'],
+                                evals = watchlist, verbose_eval=10)
+                pred = bst.predict(d_cv_valid, ntree_limit=bst.best_ntree_limit)
+            else:
+                print('the algo %s is wrong' %algo_name)
+            score[run][fold] = metrics.roc_auc_score(y_true=cv_valid.y, y_score=pred)
+            print('fold: %d, score: %.6f ' %(fold, score[run][fold]))
+            fold += 1
+        print('run: %d, score: %.6f' %(run, np.mean(score[run])))
+    score_mean = np.mean(score)
+    score_std = np.std(score)
+    print('mean score: %.6f, std: %.6f' %(score_mean, score_std))
+    return {'loss':-score_mean,
+             'attachments': {'std': score_std},
+            'status': STATUS_OK}
+
+#train and test:
+algorithm = 'reg_xgb_tree'
+# search optimization param
+objective = lambda p:hypert_wrapper(p,algorithm)
+param_space = {}
+trials = Trials()
+trial_counter = 0
+if algorithm == 'skl_logis':
+    param_space_skl_logis = {
+        'C':hp.quniform('C',0,3,0.1)
+    }
+    param_space = param_space_skl_logis
+elif algorithm == 'reg_xgb_tree':
+    #xgboost for Logistic Regression
+    xgb_random_seed = 2016
+    xgb_max_evals = 200
+    param_space_reg_xgb_tree = {
+        'booster': 'gbtree',
+        'objective': 'binary:logistic',
+        'eval_metric': 'auc',
+        'early_stopping_rounds':10,
+        'scale_pos_weight': 1542.0/13458.0,
+        'eta': hp.quniform('eta', 0.04, 0.3, 0.02),
+        'gamma':0,
+        'lambda':hp.quniform('lambda',300,900,50),
+        'min_child_weight': hp.quniform('min_child_weight', 0, 10, 1),
+        'max_depth': hp.quniform('max_depth', 5, 12, 1),
+        'subsample': hp.quniform('subsample', 0.5, 1, 0.1),
+        'colsample_bytree': hp.quniform('colsample_bytree', 0.1, 1, 0.1),
+        'num_round': 1000,
+        'nthread': 8,
+        'silent': 1,
+        'seed': xgb_random_seed,
+        "max_evals": xgb_max_evals
+    }
+    param_space = param_space_reg_xgb_tree
+
+best_param = fmin(objective, param_space, algo= tpe.suggest, max_evals= 200,
+                     trials = trials)
+print('best_param:')
+for (k,v) in best_param.items():
+    print('%s : %s' %(k,v))
+print('trials.trials:')
+print(trials.trials)
+#retraining on all the data
+if algorithm == 'skl_logis':
+    model = LogisticRegression(C= best_param['C'], class_weight='auto')
+    #remove 'uid'
+    model.fit(X= train.drop(labels = ['uid','y'], axis = 1), y = train.y)
+    #test
+    test_y_prob = model.predict_proba(test.drop(labels=['uid','y'], axis = 1))
+    test_y_prob = test_y_prob[:,1]
+elif algorithm == 'reg_xgb_tree':
+    dtrain = xgb.DMatrix(data=train.drop(['uid','y'],axis = 1), label=train.y)
+    bst = xgb.train(best_param,dtrain,num_boost_round=best_param['num_round'])
+    dtest = xgb.DMatrix(data=test.drop(['uid','y'],axis = 1), label=test.y)
+    test_y_prob = bst.predict(dtest,
+                              ntree_limit=bst.best_ntree_limit)
+
+# xgb_random_seed = 2016
+# xgb_nthread = 8
 # random_seed  = 1225
 # trainV,val = train_test_split(train, test_size = 0.25,random_state=random_seed)
 # trainVLabel = trainV.y
@@ -168,33 +310,35 @@ test = datas[datas['y'] == sigVal]
 # dval = xgb.DMatrix(data= valX, label=valLabel)
 # dtrain = xgb.DMatrix(data= train, label=trainLabel)
 # dtest = xgb.DMatrix(data= testX)
+#'gamma': hp.quniform('gamma', 0, 2, 0.1)
 # params={
 #     'booster':'gbtree',
 #     'objective': 'binary:logistic',
-#     'early_stopping_rounds':20,
+#     'early_stopping_rounds':10,
+#     'silent':1,
 #     'scale_pos_weight': 1542.0/13458.0,
-#         'eval_metric': 'auc',
+#          'eval_metric': 'auc',
 #     'gamma':0,
 #     'max_depth': 8,
-#     'lambda':700,
-#         'subsample':0.75,
-#         'colsample_bytree':0.4,
-#         'min_child_weight':5,
-#         'eta': 0.1,
+#     'lambda':550,
+#         'subsample':1.0,
+#         'colsample_bytree':0.6,
+#         'min_child_weight':3,
+#         'eta': 0.03,
 #     'seed':random_seed,
 #     'nthread':8
 #     }
 # evalist = [(dval, 'val'), (dtrainV, 'train')]
 # #bst_cv = xgb.cv(params, dtrain,num_boost_round=3000, nfold=4)
-# model = xgb.train(params,dtrainV, verbose_eval = 50, num_boost_round= 6000, evals=evalist)
+# print('start train:')
+# evalsresult = {}
+# model = xgb.train(params,dtrainV, verbose_eval = 50, num_boost_round= 8000, evals=evalist, evals_result=evalsresult)
 # # bst = Booster(params, [dtrain] + [d[0] for d in evals])
-#
 # cur_time = time.strftime("%m%d_%H%M",time.localtime())
 # model.save_model(cur_time + '_xgb.model')
 # test_y_prob = model.predict(dtest,ntree_limit=model.best_ntree_limit)
 
 
-#result = pd.DataFrame(test['uid']) ### ???
 result = pd.DataFrame(columns=['uid', 'score'])
 result.uid = test.uid
 result.score = test_y_prob
