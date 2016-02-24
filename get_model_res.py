@@ -157,10 +157,10 @@ for model_rank in model_ranks:
     model_name = model_id + ("_%d" %model_counter)
     for key in param_key:
         param[key] = param_all[key]
-    model_cv_res(param,model_name)
-    # model = {}
-    # model['param'] = param
-    # model['model_name'] = model_name
-    # model_res(model)
+    #model_cv_res(param,model_name)
+    model = {}
+    model['param'] = param
+    model['model_name'] = model_name
+    model_res(model)
 
 

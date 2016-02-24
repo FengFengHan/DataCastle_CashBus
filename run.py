@@ -15,9 +15,11 @@ import matplotlib.pyplot as plt
 i_path = '/Users/HAN/Documents/CashBus/feat/'
 o_path = '/Users/HAN/Documents/CashBus/output/'
 test_path = '/Users/HAN/Documents/CashBus/test/'
+save_cv_path = '/Users/HAN/Documents/CashBus/output/cv/'
 
 #input train and test
-feat_name = 'feat0'
+#feat_name = 'feat0'
+feat_name = 'feat1'
 train_file = i_path + 'train_' + feat_name + '.csv'
 train = pd.read_csv(train_file)
 test_file = i_path + 'test_' + feat_name + '.csv'
@@ -94,6 +96,15 @@ def hypert_wrapper(param, algo_name):
             fold_time = str((datetime.datetime.now() - time_start_fold).seconds)
             print('fold: %d, score: %.6f, time: %ss' %(fold, score[run][fold], fold_time))
             fold += 1
+            cur_save_path = save_cv_path + ('run%d_fold%d/' %(run,fold))
+            if not os.path.exists(cur_save_path):
+                os.makedirs(cur_save_path)
+            model_name = ('F%s_M%s_%d' %(feat_name, algo_name, trial_counter))
+            file_name = cur_save_path + model_name + ".csv"
+            cv_res = pd.DataFrame(columns=['y_pred','y_label'])
+            cv_res.y_pred = pred
+            cv_res.y_label = cv_valid.y
+            cv_res.to_csv(file_name,index=False)
         print('run: %d, score: %.6f' %(run, np.mean(score[run])))
     score_mean = np.mean(score)
     score_std = np.std(score)
@@ -128,7 +139,7 @@ if algorithm == 'skl_logis':
 elif algorithm == 'xgb_tree':
     #xgboost for Logistic Regression
     xgb_random_seed = 2016
-    xgb_max_evals = 200
+    xgb_max_evals = 100
     params={
     'booster':'gbtree',
     'objective': 'binary:logistic',
