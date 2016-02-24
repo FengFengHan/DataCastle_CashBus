@@ -1,22 +1,11 @@
 import pandas as pd
 import numpy as np
-import time
-import xgboost as xgb
-from sklearn.cross_validation import train_test_split
-from sklearn.cross_validation import KFold
-from sklearn import metrics
-from sklearn.linear_model import LogisticRegression
-from hyperopt import fmin, hp, STATUS_OK, Trials, tpe
-import os
-import csv
-import datetime
-import matplotlib.pyplot as plt
 
 #from myUtil import *
 
 i_path = '/Users/HAN/Documents/CashBus/input/'
-o_path = '/Users/HAN/Documents/CashBus/output/'
-test_path = '/Users/HAN/Documents/CashBus/test/'
+o_path = '/Users/HAN/Documents/CashBus/feat/'
+feat_name = 'feat0'
 def catToDummy(data, featuresType):
     for i in range(len(featuresType.ix[:,1])):
         if featuresType.ix[i, 1] == 'category':
@@ -30,14 +19,6 @@ def catToDummy(data, featuresType):
                 data = pd.concat([data, dummies], axis = 1)
     return data
 
-#def getMissrate(data):
-#   Missrate = {}
-#   Count = len(data)
-#   for feature in data.columns:
-#       missCount = len(data[np.isnan(data[feature])])
-#       rate = missCount / Count
-#       Missrate[feature] = rate
-#   return Missrate
 def getMissrate(x):
      missCount = np.isnan(x).sum()
      return missCount/len(x)
@@ -51,6 +32,18 @@ uidType = pd.DataFrame({'feature':['uid'],
                    'type':['numeric']})
 featuresType = pd.concat([featuresType, uidType], ignore_index=True
                          )
+# #feature Info
+#  #feaNum: include 'uid', 1046
+# feaNumCnt = len(featuresType[featuresType['type'] == 'numeric'])
+# #feaCat: 93
+# feaCateCnt = len(featuresType[featuresType['type'] == 'category'])
+
+##negtive class and positive class
+#rate = neg / pos
+#posCount = len(train_y[train_y['y'] == 1])  1542
+#negCount = len(train_y[train_y['y'] == 0])   13458
+#rate = negCount/posCount = 0.11
+
 #miss value
 # ##negtive that is less than -2, but it is not missing value
 # ### 67 rows,both numeric feature; {feature:rowCount}--
@@ -78,13 +71,6 @@ def isNA(x):
     return False
 train_x.where(train_x.applymap(notNA), np.nan, inplace = True)
 test_x.where(test_x.applymap(notNA), np.nan, inplace = True)
-
-# #feature Info
-#  #feaNum: include 'uid', 1046
-# feaNumCnt = len(featuresType[featuresType['type'] == 'numeric'])
-# #feaCat: 93
-# feaCateCnt = len(featuresType[featuresType['type'] == 'category'])
-
 # missrate
 # line missrate:
 #train_x_NA = train_x[np.isnan(train_x), axis = 1)] # 15000 rows
@@ -150,51 +136,9 @@ datas = catToDummy(data=datas, featuresType =featuresType)
 train = datas[datas['y'] != sigVal]
 test = datas[datas['y'] == sigVal]
 
-##negtive class and positive class
-#rate = neg / pos
-#posCount = len(train_y[train_y['y'] == 1])  1542
-#negCount = len(train_y[train_y['y'] == 0])   13458
-#rate = negCount/posCount = 0.11
+file_name = o_path +  'train_' + feat_name + '.csv'
+train.to_csv(file_name,index=False)
+file_name = o_path +  'test_' + feat_name + '.csv'
+test.to_csv(file_name, index =False)
 
-#get param from log
-i_log_path = o_path
-file_name = 'T0221_1426_Ffeat0_Mxgb_tree_hyper.csv'
-log_file = i_log_path + file_name
-params_df = pd.read_csv(log_file)
-params_df.sort("res_mean", ascending = False, inplace = True)
-param = {}
-param_key = params_df.columns[4:]
-total_y_prob = np.zeros(test.shape[0])
-for row in range(5):
-    for key in param_key:
-        param[key] = params_df.iloc[row][key]
-    param['seed'] = np.random.RandomState(2016 + 100*row)
-    param['subsample'] = 0.75
-    #tarin by selected param
-    best_param = param
-    dtrain = xgb.DMatrix(data=train.drop(['uid','y'],axis = 1), label=train.y,
-                             missing=np.nan)
-    bst = xgb.train(best_param,dtrain,num_boost_round=best_param['num_round'])
-    dtest = xgb.DMatrix(data=test.drop(['uid','y'],axis = 1), label=test.y,
-                        missing=np.nan)
-    test_y_prob = bst.predict(dtest,
-                              ntree_limit=bst.best_ntree_limit)
-    total_y_prob += test_y_prob * 0.2
-#output result
-result = pd.DataFrame(columns=['uid', 'score'])
-result.uid = test.uid
-result.score = total_y_prob
-fileName = o_path + 'result.csv'
-result.to_csv(fileName, index = False)
-'''file has someproblem: (1) the col name no "" (2) the last line is empty;
-hence there is some process for file
-'''
-f = open(fileName, 'r')
-fileData = f.read()
-fileData = fileData.replace('uid,score','"uid","score"')[:-1]
-f.close()
-cur_time = time.strftime("%m%d_%H%M",time.localtime())
-f = open(o_path + cur_time + '_result.csv', 'w')
-f.write(fileData)
-f.close()
 
