@@ -5,18 +5,19 @@ import numpy as np
 
 i_path = '/Users/HAN/Documents/CashBus/input/'
 o_path = '/Users/HAN/Documents/CashBus/feat/'
-feat_name = 'feat0'
+#feat_name = 'feat0' #2016.2.24 labeled in git
+feat_name = 'feat1' # based on feat0,then 去除categorical中缺失率大于25% ;去除one-hot col of missing
 def catToDummy(data, featuresType):
     for i in range(len(featuresType.ix[:,1])):
         if featuresType.ix[i, 1] == 'category':
             feature = featuresType.ix[i,0]
             if feature in data.columns:
                 dummies = pd.get_dummies(data[feature], prefix= feature)
-                # feature replaced by dummies
-                data.drop(feature, axis = 1, inplace = True)
                 # for regression, dummies remove last col   ### ???
                 ### data = pd.concat([data, dummies.ix[:,:-1]], axis = 1)
                 data = pd.concat([data, dummies], axis = 1)
+                # feature replaced by dummies
+                data.drop(feature, axis = 1, inplace = True)
     return data
 
 def getMissrate(x):
@@ -79,15 +80,15 @@ test_x.where(test_x.applymap(notNA), np.nan, inplace = True)
 #trainMissrate = getMissrate(train_x) #max:0.9678
 #testMissrate = getMissrate(test_x) #max: 0.9648
 
-# trFeatureMiss = train_x.apply(getMissrate, reduce = False).to_frame()
-# trFeatureMiss.columns = ['trMissrate']
-# trFeatureMiss = pd.merge(featuresType, trFeatureMiss, left_on = 'feature',
-#                          right_index= True)
-# teFeatureMiss = test_x.apply(getMissrate, reduce = False).to_frame()
-# teFeatureMiss.columns = ['teMissrate']
-# teFeatureMiss = pd.merge(featuresType, teFeatureMiss,  left_on='feature',
-#                          right_index= True)
-# FeatureMiss = pd.merge(trFeatureMiss, teFeatureMiss)
+trFeatureMiss = train_x.apply(getMissrate, reduce = False).to_frame()
+trFeatureMiss.columns = ['trMissrate']
+trFeatureMiss = pd.merge(featuresType, trFeatureMiss, left_on = 'feature',
+                         right_index= True)
+teFeatureMiss = test_x.apply(getMissrate, reduce = False).to_frame()
+teFeatureMiss.columns = ['teMissrate']
+teFeatureMiss = pd.merge(featuresType, teFeatureMiss,  left_on='feature',
+                         right_index= True)
+FeatureMiss = pd.merge(trFeatureMiss, teFeatureMiss)
 
 ## has 642 feture has same missrate 0.0012666  ###???
 ##trFeatureMissInfo = trFeatureMiss.groupby(by = ['trMissrate']).count()
@@ -110,19 +111,22 @@ test_x.where(test_x.applymap(notNA), np.nan, inplace = True)
 #percentiles = [0.1, 0.4, 0.5, 0.6,0.61, 0.62, 0.63,0.64,
 #               0.65, 0.66,0.67,0.68,0.69,0.7,0.71,0.72,0.73, 0.76,
 #               0.77,0.78,0.79,0.8, 0.85, 0.9,0.97,0.98,0.99])
-# FeatureMiss = FeatureMiss[['feature', 'type', 'trMissrate', 'teMissrate']]
-# for row in range(len(FeatureMiss)):
-#     if FeatureMiss.ix[row,'trMissrate'] >= 0.06 or FeatureMiss.ix[row,'teMissrate'] >= 0.06:
-#         feature = FeatureMiss.ix[row, 'feature']
-#         train_x.drop(feature, axis = 1, inplace = True)
-#         test_x.drop(feature, axis = 1, inplace = True)
+FeatureMiss = FeatureMiss[['feature', 'type', 'trMissrate', 'teMissrate']]
+if feat_name == 'feat1':
+    for row in range(len(FeatureMiss)):
+        if FeatureMiss.ix[row, 'type'] == 'category':
+            if FeatureMiss.ix[row,'trMissrate'] >= 0.25 or FeatureMiss.ix[row,'teMissrate'] >= 0.25:
+                feature = FeatureMiss.ix[row, 'feature']
+                train_x.drop(feature, axis = 1, inplace = True)
+                test_x.drop(feature, axis = 1, inplace = True)
 
 # As xgboost is treat every variable as numeric and support for miss
-#fill NA
-for feature in train_x.columns[1:]:
-    if np.any(featuresType.loc[featuresType['feature'] == feature, 'type'] == 'category'):
-        train_x[feature].fillna(-1, inplace = True)
-        test_x[feature].fillna(-1, inplace = True)
+#fill NA to - 1 for feat0
+if feat_name == 'feat_0':
+    for feature in train_x.columns[1:]:
+        if np.any(featuresType.loc[featuresType['feature'] == feature, 'type'] == 'category'):
+            train_x[feature].fillna(-1, inplace = True)
+            test_x[feature].fillna(-1, inplace = True)
 # train_x.fillna(train_x.mean(), inplace = True)
 # test_x.fillna(test_x.mean(),inplace = True)
 train = pd.merge(train_x, train_y)
