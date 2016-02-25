@@ -16,7 +16,7 @@ def myCrossValidation(data, n_runs, n_folds):
             train_indexs = np.concatenate((indexs[:valid_index_start],
                                           indexs[valid_index_end:]))
             train = data.iloc[train_indexs,:]
-            save_path = save_root + ('run%d/fold%d/' %(run,fold))
+            save_path = save_root + ('run%d_fold%d/' %(run,fold))
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
             valid.to_csv(save_path + 'valid.csv',index=False)

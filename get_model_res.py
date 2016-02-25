@@ -11,7 +11,7 @@ test_path = '/Users/HAN/Documents/CashBus/test/'
 save_cv_path = '/Users/HAN/Documents/CashBus/output/cv/'
 save_pred_path = '/Users/HAN/Documents/CashBus/output/pred/'
 #input train and test
-feat_name = 'feat0'
+feat_name = 'feat1'
 train_file = i_path + 'train_' + feat_name + '.csv'
 train = pd.read_csv(train_file)
 test_file = i_path + 'test_' + feat_name + '.csv'
@@ -87,7 +87,7 @@ def model_res(model):
     param = model['param']
     model_name = model['model_name']
     #trainning on All data
-    bag_size = 10
+    bag_size = 30
     bag_ratio = 0.75
     num_train = train.shape[0]
     num_test = test.shape[0]
@@ -112,7 +112,7 @@ def model_res(model):
 #get param from log
 i_log_path = o_path
 model_id = 'Ffeat0_Mxgb_tree'
-file_name = 'T0221_1426_'+ model_id + '_hyper.csv'
+file_name = 'T0224_1424_'+ model_id + '_hyper.csv'
 log_file = i_log_path + file_name
 params_df = pd.read_csv(log_file)
 params_df.sort("res_mean", ascending = False, inplace = True)
@@ -122,7 +122,7 @@ param_key = params_df.columns[4:]
 total_y_prob = np.zeros(test.shape[0])
 
 
-model_num = 10
+model_num = 1
 param_vars = ['eta', 'lambda', 'min_child_weight', 'max_depth', 'colsample_bytree']
 threshold = 0.4
 model_ranks = []
@@ -145,7 +145,7 @@ for row in range(params_df.shape[0]):
             break
     if not redundant:
         model_ranks.append(row)
-    if len(model_ranks) >= 10:
+    if len(model_ranks) >= model_num:
         break
 
 for model_rank in model_ranks:

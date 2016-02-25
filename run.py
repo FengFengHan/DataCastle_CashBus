@@ -5,7 +5,7 @@ import xgboost as xgb
 from sklearn.cross_validation import train_test_split
 from sklearn.cross_validation import KFold
 from sklearn import metrics
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, Ridge, Lasso
 from hyperopt import fmin, hp, STATUS_OK, Trials, tpe
 import os
 import csv
@@ -90,6 +90,11 @@ def hypert_wrapper(param, algo_name):
                 #     data_writer.writerow(score_val)
                 #     data_handler.flush()
                 pred = bst.predict(d_cv_valid, ntree_limit=bst.best_ntree_limit)
+            elif algo_name == 'skl_lasso':
+                lasso = Lasso(alpha=param["alpha"], normalize=True)
+                lasso.fit(cv_train.drop(labels=['uid','y'], axis = 1),
+                          cv_train.y)
+                pred = lasso.predict(cv_valid)
             else:
                 print('the algo %s is wrong' %algo_name)
             score[run][fold] = metrics.roc_auc_score(y_true=cv_valid.y, y_score=pred)
@@ -179,14 +184,17 @@ elif algorithm == 'xgb_tree':
         "max_evals": xgb_max_evals
     }
     param_space = param_space_xgb_tree
-    if debug:
-        param_space = params
+elif algorithm == "skl_lasso":
+    param_space_lasso = {
+        'alpha':hp.loguniform("alpha", np.log(0.00001), np.log(0.1)),
+    }
+    param_space = param_space_lasso
 
-feature_name = 'feat0'
+
 model_name = algorithm
 log_file = ('%sT%s_F%s_M%s_hyper.csv' %(log_path,
                                         time.strftime("%m%d_%H%M",time.localtime()),
-                                        feature_name,
+                                        feat_name,
                                         model_name
 ))
 log_handler = open(log_file,'w')

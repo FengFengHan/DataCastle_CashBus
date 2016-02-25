@@ -9,7 +9,7 @@ o_path = '/Users/HAN/Documents/CashBus/output/'
 test_path = '/Users/HAN/Documents/CashBus/test/'
 
 #input train and test
-feat_name = 'feat0'
+feat_name = 'feat1'
 train_file = i_path + 'train_' + feat_name + '.csv'
 train = pd.read_csv(train_file)
 test_file = i_path + 'test_' + feat_name + '.csv'
@@ -18,7 +18,7 @@ test = pd.read_csv(test_file)
 
 #get param from log
 i_log_path = o_path
-file_name = 'T0221_1426_Ffeat0_Mxgb_tree_hyper.csv'
+file_name = 'T0224_1424_Ffeat0_Mxgb_tree_hyper.csv'
 log_file = i_log_path + file_name
 params_df = pd.read_csv(log_file)
 params_df.sort("res_mean", ascending = False, inplace = True)
@@ -26,14 +26,14 @@ param = {}
 param_key = params_df.columns[4:]
 
 pred_path = '/Users/HAN/Documents/CashBus/output/pred/'
-model_id = 'Ffeat0_Mxgb_tree'
-model_ranks = [0,1,6,9,15,20,25,29,30,32]
+model_id = 'Ffeat1_Mxgb_tree'
+model_ranks = [0]
 model_counters = []
 for model_rank in model_ranks:
     param_all = params_df.iloc[model_rank,:]
     model_counters.append(param_all['trail_counter'])
 
-model_num = 10
+model_num = len(model_ranks)
 counters = model_counters[:model_num]
 # direct ensemble
 num_test = 5000
