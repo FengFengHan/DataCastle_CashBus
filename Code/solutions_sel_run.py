@@ -3,7 +3,7 @@ import numpy as np
 import datetime
 import xgboost as xgb
 import os
-from sklearn.linear_model import LogisticRegression, Ridge
+from sklearn.linear_model import LogisticRegression, Ridge, Lasso
 import csv
 
 data_path = '/Users/HAN/Documents/CashBus/Data/'
@@ -12,11 +12,13 @@ test_path = data_path + 'test/'
 log_path = data_path + 'log/'
 pred_path = data_path + 'pred/'
 
+single_models = ['skl_rige', 'skl_lasso']
+
 debug = False
 if debug:
     pred_path = test_path
 feat_name = 'feat1'
-model = 'xgb_tree'
+model = 'skl_rige_xgb_tree'
 if model in ['skl_lasso', 'skl_rige']:
     feat_name = feat_name + '_nonan'
 solution_name = ('F%s_M%s' %(feat_name, model))
@@ -30,7 +32,10 @@ test_x = test.drop(labels=['uid'], axis = 1)
 global file_name
 def solution_run(param,solution_id):
     #trainning on All data
-    bag_size = 10
+    bag_size = 1
+    if model in single_models:
+        bag_size = 100
+        #bag_size = 30 # it is temp
     if debug:
         bag_size = 1
     bag_ratio = 0.75
@@ -39,6 +44,7 @@ def solution_run(param,solution_id):
     preds_bag = np.zeros((num_test, bag_size))
     for bag_iter in range(bag_size):
         print('bag num: %d' %bag_iter)
+        solution_id = int (solution_id)
         rng = np.random.RandomState(2016 + 100*bag_iter + 10 * solution_id)
         randnums = rng.uniform(size = num_train)
         index_sels = [i for i in range(num_train) if randnums[i] <= bag_ratio]
@@ -57,6 +63,11 @@ def solution_run(param,solution_id):
             rige.fit(train_bag_x,
                           train_bag_label)
             pred = rige.predict(test_x)
+        elif model == 'skl_lasso':
+            lasso = Lasso(alpha=param["alpha"], normalize=True)
+            lasso.fit(train_bag_x,
+                      train_bag_label)
+            pred = lasso.predict(test_x)
         preds_bag[:,bag_iter] = pred
     global file_name
     file_name = pred_path + solution_name + ('_%d' %solution_id) + ".csv"
@@ -87,10 +98,13 @@ def solutions_sel(solution_name,log_path):
     params_df = pd.read_csv(log_file)
     params_df.sort("res_mean", ascending = False, inplace = True)
     # get solution ranks
-    max_sel_num = 5
+    #max_sel_num = 10
+    max_sel_num = 10
+    if model in single_models:
+        max_sel_num = 1
     if debug:
-        max_sel_num = 2
-    thresholds = {'xgb_tree':3
+        max_sel_num = 1
+    thresholds = {'xgb_tree':2
     }
     solution_ranks = []
     redundant = False
@@ -124,13 +138,14 @@ def solutions_sel(solution_name,log_path):
     output_file_name = log_path + solution_name + '_sel.csv'
     params_df_sel.to_csv(output_file_name,index=False)
 
+
 solutions_sel(solution_name, log_path)
 solutions_df = pd.read_csv(log_path + solution_name + '_sel.csv')
 solutions_df.sort("res_mean", ascending = False, inplace = True)
-for row in range(solutions_df.shape[0]):
-   print("solution-%d" %row)
-   param = (solutions_df.iloc[row, :]).to_dict()
-   solution_id = param['trail_counter']
-   solution_run(param,solution_id)
+#for row in range(solutions_df.shape[0]):
+#   print("solution-%d" %row)
+#   param = (solutions_df.iloc[row, :]).to_dict()
+#   solution_id = param['trail_counter']
+#   solution_run(param,solution_id)
 
 
