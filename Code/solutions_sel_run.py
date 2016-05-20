@@ -5,12 +5,7 @@ import xgboost as xgb
 import os
 from sklearn.linear_model import LogisticRegression, Ridge, Lasso
 import csv
-
-data_path = '/Users/HAN/Documents/CashBus/Data/'
-feat_path = data_path + 'feat/'
-test_path = data_path + 'test/'
-log_path = data_path + 'log/'
-pred_path = data_path + 'pred/'
+from Code.MyUtil import *
 
 single_models = ['skl_rige', 'skl_lasso']
 
@@ -139,8 +134,8 @@ def solutions_sel(solution_name,log_path):
     params_df_sel.to_csv(output_file_name,index=False)
 
 
-solutions_sel(solution_name, log_path)
-solutions_df = pd.read_csv(log_path + solution_name + '_sel.csv')
+solutions_sel(solution_name, log_read_path)
+solutions_df = pd.read_csv(log_read_path + solution_name + '_sel.csv')
 solutions_df.sort("res_mean", ascending = False, inplace = True)
 #for row in range(solutions_df.shape[0]):
 #   print("solution-%d" %row)

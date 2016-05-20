@@ -4,14 +4,8 @@ import time
 from sklearn import metrics
 from sklearn.preprocessing import scale
 import csv
+from Code.MyUtil import *
 
-data_path = '/Users/HAN/Documents/CashBus/Data/'
-feat_path = data_path + 'feat/'
-test_path = data_path + 'test/'
-log_path = data_path + 'log/'
-pred_path = data_path + 'pred/'
-res_path = data_path + 'result/'
-cv_path = data_path + 'cv/'
 
 test = pd.read_csv(feat_path + 'test_feat1.csv')
 train = pd.read_csv(feat_path + 'train_feat1.csv')
@@ -23,7 +17,7 @@ solution_names = ['Ffeat0_Mxgb_tree',
 
 allSolutions = []
 for solution_name in solution_names:
-    params = pd.read_csv(log_path + solution_name + '_sel.csv')
+    params = pd.read_csv(log_read_path + solution_name + '_sel.csv')
     for solution_id in params.trail_counter:
         solution = solution_name + ('_%d' %solution_id)
         allSolutions.append(solution)

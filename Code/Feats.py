@@ -1,19 +1,25 @@
+import sys
+sys.path.extend(['/Users/HAN/AllCode/Projects/CashBus'])
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LogisticRegression, Ridge, Lasso
 import csv
+import matplotlib.pyplot as plt
 
 #from myUtil import *
+from Code.MyUtil import *
 
-input_path = '/Users/HAN/Documents/CashBus/Data/input/'
-output_path = '/Users/HAN/Documents/CashBus/Data/feat/'
 
 #debug = True
 #if debug:
 #    output_path = '/Users/HAN/Documents/CashBus/Data/feat/test/'
 #F_name = 'feat0' #2016.2.24 labeled in git
-feat_name = 'feat1' # based on feat0,then 去除categorical中缺失率大于25% ;去除one-hot col of missing
-remove_nan = False # 'nonan' denote:对于数值属性,用平均值填充
+#feat_name = 'feat1' # based on feat0,then 去除categorical中缺失率大于25% ;去除one-hot col of missing
+#feat_name = 'feat2' # 去除所有属性中缺失率大于10%的
+feat_name = 'feat3' # 不去除有缺失的属性
+
+rem_thresholds = {'feat2': 0.1, 'feat3':1.0}
+rem_threshold = rem_thresholds[feat_name]
 #def gen_feature(feat_name, input_path,output_path):
 def catToDummy(data, featuresType):
     for i in range(len(featuresType.ix[:,1])):
@@ -99,34 +105,44 @@ teFeatureMiss = pd.merge(featuresType, teFeatureMiss,  left_on='feature',
 FeatureMiss = pd.merge(trFeatureMiss, teFeatureMiss)
 
 ## has 642 feture has same missrate 0.0012666  ###???
-##trFeatureMissInfo = trFeatureMiss.groupby(by = ['trMissrate']).count()
+trFeatureMissInfo = trFeatureMiss.groupby(by = ['trMissrate']).count()
 
-###    mean: 0.0628; 85% = 0.0547, 0.295=<86% ~97% <= 0.33; max:0.895;
-#trNumMissInfo = trFeatureMiss[trFeatureMiss['type'] == 'numeric'].describe(
-#percentiles = [0.1, 0.6,0.7,0.8, 0.85, 0.86,0.87,0.97,0.98,0.99])
-###      mean:0.249; 40% = 0, 63% = 0.039, 0.172 <= 64%~65% <= 0.191,
-###       0.228 <= 66%~76% <= 0.33,77% = 0.531, 0.81<= 78%; max:0.968
-#trCatMissInfo = trFeatureMiss[trFeatureMiss['type'] == 'category'].describe(
-#percentiles = [0.1, 0.4, 0.5, 0.6,0.61, 0.62, 0.63,0.64,
-#               0.65, 0.66,0.67,0.68,0.69,0.7,0.71,0.72,0.73, 0.76,
-#               0.77,0.78,0.79,0.8, 0.85, 0.9,0.97,0.98,0.99])
-###     mean: 0.0618; 85% = 0.0547, 0,286 =< 0.86~0.97 <= 0.326;max:0.897
-#teNumMissInfo = teFeatureMiss[teFeatureMiss['type'] == 'numeric'].describe(
-#percentiles = [0.1, 0.6, 0.7,0.8, 0.85, 0.86,0.87,0.97,0.98,0.99])
-###     mean: 0.248; 40% = 0, 63% = 0.0378, 0.163 <= 64%~65% <= 0.182,
-###     0.221 <= 66%~76% <= 0.326,77% = 0.528, 0.81<= 78%; max:0.965
-#teCatMissInfo = teFeatureMiss[teFeatureMiss['type'] == 'category'].describe(
-#percentiles = [0.1, 0.4, 0.5, 0.6,0.61, 0.62, 0.63,0.64,
-#               0.65, 0.66,0.67,0.68,0.69,0.7,0.71,0.72,0.73, 0.76,
-#               0.77,0.78,0.79,0.8, 0.85, 0.9,0.97,0.98,0.99])
+# fig_num = 0
+# def missrate_feanum(df, miss_col,file_name):
+#     rate = 0.0
+#     nums = [0] * 100
+#     num = 0
+#     temp = df
+#     for i in range(100):
+#         rate = i * 0.01
+#         num = np.sum(temp[miss_col] <= rate)
+#         if(i > 0):
+#             nums[i] = nums[i-1] + num
+#         else:
+#             nums[i] = num
+#         temp = temp[temp[miss_col] > rate]
+#     global fig_num
+#     plt.figure(fig_num)
+#     fig_num += 1
+#     plt.plot(nums,'-*')
+#     #plt.show()
+#     plt.savefig(fig_path + file_name + '.png')
+# trNumMiss = trFeatureMiss[trFeatureMiss['type'] == 'numeric']
+# missrate_feanum(trNumMiss,'trMissrate','tr_miss_num')
+# trCatMiss = trFeatureMiss[trFeatureMiss['type'] == 'category']
+# missrate_feanum(trCatMiss,'trMissrate','tr_miss_cat')
+# teNumMiss = teFeatureMiss[teFeatureMiss['type'] == 'numeric']
+# missrate_feanum(teNumMiss,'teMissrate','te_miss_num')
+# teCatMiss = teFeatureMiss[teFeatureMiss['type'] == 'category']
+# missrate_feanum(teCatMiss,'teMissrate','te_miss_cat')
+
 FeatureMiss = FeatureMiss[['feature', 'type', 'trMissrate', 'teMissrate']]
-if feat_name == 'feat1':
-    for row in range(len(FeatureMiss)):
-        if FeatureMiss.ix[row, 'type'] == 'category':
-            if FeatureMiss.ix[row,'trMissrate'] >= 0.25 or FeatureMiss.ix[row,'teMissrate'] >= 0.25:
-                feature = FeatureMiss.ix[row, 'feature']
-                train_x.drop(feature, axis = 1, inplace = True)
-                test_x.drop(feature, axis = 1, inplace = True)
+for row in range(len(FeatureMiss)):
+    #if FeatureMiss.ix[row, 'type'] == 'category':
+    if FeatureMiss.ix[row,'trMissrate'] >= rem_threshold:
+        feature = FeatureMiss.ix[row, 'feature']
+        train_x.drop(feature, axis = 1, inplace = True)
+        test_x.drop(feature, axis = 1, inplace = True)
 
 # As xgboost is treat every variable as numeric and support for miss
 #feat0: fill NA to - 1 for category
@@ -145,22 +161,38 @@ train = datas[datas['y'] != sigVal]
 test = datas[datas['y'] == sigVal]
 test.drop(labels=['y'], axis = 1, inplace = True)
 
-if remove_nan:
-    train.fillna(train.mean(), inplace = True)
-    test.fillna(test.mean(),inplace = True)
+# divide train to train_train for train and train_valid for model ensemble
+train_train_percent = 0.9
+rng = np.random.RandomState(2016)
+num_train = len(train)
+indexs = rng.permutation(num_train)
+train_train_num = (int)(num_train*train_train_percent)
+train_train = train.iloc[indexs[0:train_train_num],:]
+train_valid = train.iloc[indexs[train_train_num:],:]
 
 #output
-file_name = output_path + 'train_' + feat_name + ('_nonan' if remove_nan else '') + '.csv'
-train.to_csv(file_name,index=False)
-file_name = output_path + 'test_' + feat_name + ('_nonan' if remove_nan else '') + '.csv'
-test.to_csv(file_name, index =False)
+file_ids = {'train':train_train, 
+            'train_valid':train_valid,
+            'train_all':train,
+            'test':test}
+for file_id in file_ids:
+    file_name = output_path + file_id + '_' + feat_name + '.csv'
+    df = file_ids[file_id]
+    df.to_csv(file_name,indexs=False)
+    # 'nonan' denote:对于数值属性,用平均值填充
+    file_name = output_path + file_id + '_' + feat_name + '_nonan' + '.csv'
+    df.fillna(df.mean(),inplace=True)
+    df.to_csv(file_name,indexs=False)
+
+
 #train = pd.read_csv(o_path + 'train_' + F_name + ('_nonan' if remove_nan else '') + '.csv')
 #test = pd.read_csv(o_path + 'test_' + F_name + ('_nonan' if remove_nan else '') + '.csv')
 
 #gen_feature(F_name,i_path, o_path)
-cat_file_name = output_path + feat_name + '_catName' + ('_nonan' if remove_nan else '') + '.csv'
-cat_feature_names = datas.columns[1047:]
-handler = open(cat_file_name,'w')
-writer = csv.writer(handler)
-writer.writerows(cat_feature_names)
-handler.flush()
+
+# cat_file_name = output_path + feat_name + '_catName' + ('_nonan' if remove_nan else '') + '.csv'
+# cat_feature_names = datas.columns[1047:]
+# handler = open(cat_file_name,'w')
+# writer = csv.writer(handler)
+# writer.writerows(cat_feature_names)
+# handler.flush()

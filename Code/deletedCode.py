@@ -79,20 +79,3 @@ elif algorithm == 'xgb_tree':
 #     score_std = np.std(score)
 #     print('mean score: %.6f, std: %.6f' %(score_mean, score_std))
 
-#submit
-result = pd.DataFrame(columns=['uid', 'score'])
-result.uid = test.uid
-result.score = test_y_prob
-fileName = o_path + 'result.csv'
-result.to_csv(fileName, index = False)
-'''file has someproblem: (1) the col name no "" (2) the last line is empty;
-hence there is some process for file
-'''
-f = open(fileName, 'r')
-fileData = f.read()
-fileData = fileData.replace('uid,score','"uid","score"')[:-1]
-f.close()
-cur_time = time.strftime("%m%d_%H%M",time.localtime())
-f = open(o_path + cur_time + '_result.csv', 'w')
-f.write(fileData)
-f.close()

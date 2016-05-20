@@ -13,78 +13,10 @@ import os
 import csv
 import datetime
 import matplotlib.pyplot as plt
-#from my_const_var import param_spaces
+from Code.MyUtil import *
 
-param_xgb_tree={
-        'booster':'gbtree',
-        'objective': 'binary:logistic',
-        'early_stopping_rounds':10,
-        'silent':1,
-        'scale_pos_weight': 1542.0/13458.0,
-             'eval_metric': 'auc',
-        'gamma':0,
-        'max_depth': 8,
-        'lambda':550,
-            'subsample':1.0,
-            'colsample_bytree':0.5,
-            'min_child_weight':5,
-            'eta': 0.3,
-        'seed':2016,
-        'nthread':8,
-        'num_round': 600,
-        'max_evals':1
-        }
 
-#param space:
-#"skl_logis"
-param_space_skl_logis = {
-            'C':hp.quniform('C',0,3,0.1),
-            'max_evals':200
-        }
-#"xgb_tree"
-#eta:0.3~0.4
-#lambda:600以上
-#col: 0.4 以下
-#'min_child_weight': 0~2
-#'max_depth':7~11
-param_space_xgb_tree = {
-            'booster': 'gbtree',
-            'objective': 'binary:logistic',
-            'eval_metric': 'auc',
-            'early_stopping_rounds':10,
-            'scale_pos_weight': 1542.0/13458.0,
-            'eta': hp.quniform('eta', 0.2, 0.4, 0.02),
-            'gamma':0,
-            'lambda':hp.quniform('lambda',300,900,50),
-            'min_child_weight': hp.quniform('min_child_weight', 0, 10, 1),
-            'max_depth': hp.quniform('max_depth', 5, 12, 1),
-            'subsample': 1,
-            'colsample_bytree': hp.quniform('colsample_bytree', 0.2, 0.7, 0.05),
-            'num_round': 200,
-            'nthread': 8,
-            'silent': 1,
-            'seed': 2016,
-            "max_evals": 200
-        }
-# param_space_xgb_tree = {
-#             'booster': 'gbtree',
-#             'objective': 'binary:logistic',
-#             'eval_metric': 'auc',
-#             'early_stopping_rounds':10,
-#             'scale_pos_weight': 1542.0/13458.0,
-#             'eta': hp.quniform('eta', 0.2, 0.4, 0.02),
-#             'gamma':0,
-#             'lambda':hp.quniform('lambda',300,900,50),
-#             'min_child_weight': hp.quniform('min_child_weight', 0, 10, 1),
-#             'max_depth': hp.quniform('max_depth', 5, 12, 1),
-#             'subsample': 1,
-#             'colsample_bytree': hp.quniform('colsample_bytree', 0.2, 0.7, 0.05),
-#             'num_round': 200,
-#             'nthread': 8,
-#             'silent': 1,
-#             'seed': 2016,
-#             "max_evals": 200
-#         }
+
 #"xgb_linear
 # when it is: lambda = 2.5, alpha 应> 0.5
 param_space_xgb_linear = {
@@ -102,33 +34,12 @@ param_space_xgb_linear = {
     'seed': 2016,
     "max_evals": 200,
 }
-# param_space_xgb_linear_test = {
-#     'booster': 'gblinear',
-#     'objective': 'binary:logistic',
-#     'eval_metric': 'auc',
-#     'eta' : 0.05,
-#     'lambda' : 2.5,
-#     'alpha' : hp.quniform('alpha', 0, 0.5, 0.005),
-#     'lambda_bias' : hp.quniform('lambda_bias', 0, 3, 0.1),
-#     'num_round' : 200,
-#     'nthread': 8,
-#     'silent' : 1,
-#     'seed': 2016,
-#     "max_evals": 200,
-# }
-#"lasso
-# max: alpha: 4.05e-5; mean: 0.67897099999999999
-param_space_skl_lasso = {
-    'alpha':hp.quniform("alpha",0, 9e-5, 1e-9),
-    'max_evals':100
-}
-#"rige
-#max: alpha: 3.346440148495777; mean : 0.67023599999999994
-param_space_skl_rige = {
-    #'alpha': hp.loguniform("alpha", np.log(0.01), np.log(20)),
-    'alpha':2.33,
-    'max_evals':200
-}
+
+
+
+
+
+
 #"SVM.SVR
 param_space_skl_svr = {
     'task': 'reg_skl_svr',
@@ -144,17 +55,11 @@ param_spaces = {}
 param_spaces['skl_logis'] = param_space_skl_logis
 param_spaces['xgb_tree'] = param_space_xgb_tree
 param_spaces['skl_lasso'] = param_space_skl_lasso
-param_spaces['skl_rige'] = param_space_skl_rige
 param_spaces['skl_svr'] = param_space_skl_svr
 param_spaces['xgb_linear'] = param_space_xgb_linear
 param_spaces['skl_rige_xgb_tree'] = {'skl_rige':param_space_skl_rige,
                                      'xgb_tree':param_space_xgb_tree}
 
-data_path = '/Users/HAN/Documents/CashBus/Data/'
-feat_path = data_path + 'feat/'
-test_path = data_path + 'test/'
-log_path = data_path + 'log/original/'
-cv_path = data_path + 'cv/'
 n_runs = 3 ###???
 n_folds = 4
 
@@ -271,44 +176,13 @@ def hypert_wrapper(param, solution, train):
                 model.fit(X=cv_train_x, y = cv_train_label)
                 pred = model.predict_proba(cv_valid_x)
                 pred = pred[:,1]
-            elif model == 'xgb_tree' or model == 'xgb_tree_u1':
-                evals_result = {}
-                d_cv_train = xgb.DMatrix(cv_train_x,
-                                         cv_train_label, missing=np.nan)
-                d_cv_valid = xgb.DMatrix(cv_valid_x,
-                                         cv_valid_label, missing=np.nan)
-                watchlist = [(d_cv_train,'train'),
-                             (d_cv_valid, 'valid')]
-                #watchlist = [(d_cv_valid, 'valid')]
-                bst = xgb.train(param,d_cv_train,num_boost_round=param['num_round'],
-                                evals = watchlist, verbose_eval=10,
-                                evals_result=evals_result)
-                # if debug:
-                #     score_train = evals_result['train']['auc']
-                #     score_val = evals_result['valid']['auc']
-                #     fig = plt.figure(fold)
-                #     ax1 = fig.add_subplot(211)
-                #     ax1.plot(score_train[50:],'b')
-                #     ax2 = fig.add_subplot(212)
-                #     ax2.plot(score_val[50:],'r')
-                #     save_name = test_path + ('eta_round_%.1f_%run_%d' %(param['eta'],run, fold))
-                #     fig.savefig(save_name + '.png')
-                #     data_handler = open(save_name + '.csv','w')
-                #     data_writer = csv.writer(data_handler)
-                #     data_writer.writerow(score_train)
-                #     data_writer.writerow(score_val)
-                #     data_handler.flush()
-                pred = bst.predict(d_cv_valid, ntree_limit=bst.best_ntree_limit)
+
             elif model == 'skl_lasso':
                 lasso = Lasso(alpha=param["alpha"], normalize=True)
                 lasso.fit(cv_train_x,
                           cv_train_label)
                 pred = lasso.predict(cv_valid_x)
-            elif model == 'skl_rige':
-                rige = Ridge(alpha=param["alpha"], normalize=True)
-                rige.fit(cv_train_x,
-                          cv_train_label)
-                pred = rige.predict(cv_valid_x)
+
             elif model == 'skl_svr':
                 scaler = StandardScaler()
                 cv_train_x = scaler.fit_transform(cv_train_x)
@@ -399,7 +273,7 @@ def hypert_wrapper(param, solution, train):
 def params_evaluation(model,feat_name,train):
     
     #output result
-    log_file = ('%sT%s_F%s_M%s_hyper.csv' %(log_path,
+    log_file = ('%sT%s_F%s_M%s_hyper.csv' %(log_write_path,
                                             time.strftime("%m%d_%H%M",time.localtime()),
                                             feat_name,
                                             model
