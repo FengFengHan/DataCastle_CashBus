@@ -1,19 +1,3 @@
-#retraining on all the data
-if algorithm == 'skl_logis':
-    model = LogisticRegression(C= best_param['C'], class_weight='auto')
-    #remove 'uid'
-    model.fit(X= train.drop(labels = ['uid','y'], axis = 1), y = train.y)
-    #test
-    test_y_prob = model.predict_proba(test.drop(labels=['uid','y'], axis = 1))
-    test_y_prob = test_y_prob[:,1]
-elif algorithm == 'xgb_tree':
-    dtrain = xgb.DMatrix(data=train.drop(['uid','y'],axis = 1), label=train.y,
-                         missing=np.nan)
-    bst = xgb.train(best_param,dtrain,num_boost_round=best_param['num_round'])
-    dtest = xgb.DMatrix(data=test.drop(['uid','y'],axis = 1),
-                        missing=np.nan)
-    test_y_prob = bst.predict(dtest,
-                              ntree_limit=bst.best_ntree_limit)
 
 # cv test for model
 # def model_cv_res(param, model_name):
