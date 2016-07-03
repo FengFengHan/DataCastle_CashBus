@@ -9,6 +9,9 @@ class MySolution:
         self.feat_name_ = feat_name
         self.id_ = model.id_ + '_' + feat_name
 
+    def get_result(self,model_param):
+
+
     def param_sel_var(self,param, var,start,end,step,id_):
         model = self.model_
         feat_name = self.feat_name_
@@ -34,6 +37,7 @@ class MySolution:
                                                self.id_))
         model.param_sel_space(param_space, train_x, train_y, log_csv_name)
 
+
 #feat_name = 'feat2'
 #model = SklRige()
 #parameter_sel_grid(model,'alpha',2.5,3.3,0.1,3)
@@ -55,3 +59,7 @@ class MySolution:
 # model.cv_run(train_x,train_y,1,9)
 
 #model = XgbTree()
+
+if __name__ == '__main__':
+    lrl1_result = get_result()
+    submit(lrl1_result)

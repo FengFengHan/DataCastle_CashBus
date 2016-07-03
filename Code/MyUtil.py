@@ -1,5 +1,8 @@
 from hyperopt import fmin, hp, STATUS_OK, Trials, tpe
 import numpy as np
+import copy
+import matplotlib.pyplot as plt
+import time
 
 #path
 data_path = '/Users/HAN/AllCode/Projects/CashBus/Data/'
@@ -19,7 +22,6 @@ sol_sel_path = data_path + 'sol_sel'
 #function
 def get_divides(length_,rate,divide_num):
     '''
-
     :param length_: length of divided
     :param rate: rate = (length of part)/(length_)
     :param divide_num: number of divide parts
@@ -32,4 +34,26 @@ def get_divides(length_,rate,divide_num):
         indexs_ = rng.permutation(length_)
         divides.append(indexs_[:sel_num])
     return divides
+
+def cum_plot(values,len_,fig):
+  values = copy.copy(values)
+  x = sorted(values)
+  y = [i for i in range(1,len_+1)]
+  plt.plot(x,y)
+  plt.savefig(fig)
+
+def submit(result):
+    fileName = res_path + 'result.csv'
+    result.to_csv(fileName, index=False)
+    '''file has someproblem: (1) the col name no "" (2) the last line is empty;
+    hence there is some process for file
+    '''
+    f = open(fileName, 'r')
+    fileData = f.read()
+    fileData = fileData.replace('uid,score', '"uid","score"')[:-1]
+    f.close()
+    cur_time = time.strftime("%m%d_%H%M", time.localtime())
+    f = open(res_path + cur_time + '_result.csv', 'w')
+    f.write(fileData)
+    f.close()
 #solution_sel_path = data_path + 'solution_sel/'
